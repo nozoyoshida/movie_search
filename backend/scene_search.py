@@ -128,9 +128,14 @@ def search_scene(query: str, top_n: int = 1, model: GenerativeModel = model_flas
         blob_name = meta_uri.replace(f'gs://{bucket_name}/', '')
         bucket = storage_client.bucket(bucket_name)
         blob = bucket.blob(blob_name)
-        blob.download_to_filename('metadata.txt')
-        with open('metadata.txt', 'r') as f:
-            metatext = f.read()
+
+        # download_to_filename を使わずに、blob から直接テキストデータを読み込む
+        metatext = blob.download_as_text()
+
+        # blob.download_to_filename('metadata.txt')
+        # with open('metadata.txt', 'r') as f:
+        #     metatext = f.read()
+
         prompt = PROMPT_CONTENT_SEARCH.format(query=query, metatext=metatext)
         temperature = 0.4
         result = None
