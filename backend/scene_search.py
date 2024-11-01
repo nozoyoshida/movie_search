@@ -10,6 +10,7 @@ from google.cloud import storage
 from . import PROJECT_ID, DATASTORE_ID, LOCATION
 from .search_document import search_documents_by_query
 from .utils import generate_download_signed_url_v4
+from .prompt_content_search import PROMPT_CONTENT_SEARCH
 
 from google import auth
 
@@ -17,35 +18,6 @@ from google import auth
 # credentials = service_account.Credentials.from_service_account_file('service_account_key.json')
 credentials, project_id = auth.default()
 credentials.refresh(auth.transport.requests.Request())
-
-# --- 定数 ---
-
-PROMPT_CONTENT_SEARCH = """
-You are a video content editor.
-
-Given the following information of a movie:
-- The [summary] section contains the summary of the movie.
-- The [important scenes] section contains the important scenes of the movie with timestamps.
-- The [visual info] section contains the visual information on what's happening in each scene with timestamps.
-- The [transcription] section contains speech transcription with timestamps.
-- The [text] section contains text information with timestamps.
-
-Find one to three scenes that matches the user query with timestamps.
-
-[format instruction]
-Output in Japanese. Output is a JSON list with "scene dict".
-Each "scene dict" is a JSON dict with the following format:
-{{
-  "Timestamp": "<timestamp mm:ss-mm:ss>",
-  "Description": "<Explain how this scene matches the query.>"
-}}
-
-
-[user query]
-{query}
-
-{metatext}
-"""
 
 # --- グローバル変数 ---
 vertexai.init(project=PROJECT_ID, location='us-central1')
