@@ -16,7 +16,6 @@ from . import PROJECT_ID
 # --- FastAPI アプリケーション ---
 app = FastAPI()
 
-
 @app.get("/")
 def root():
     """ルートエンドポイント"""
