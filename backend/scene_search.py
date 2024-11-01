@@ -4,7 +4,7 @@ from typing import List
 
 import vertexai
 import vertexai.preview.generative_models as generative_models
-from vertexai.preview.generative_models import GenerativeModel
+from vertexai.preview.generative_models import GenerativeModel, GenerationConfig
 from google.cloud import storage
 
 from . import PROJECT_ID, DATASTORE_ID, LOCATION
@@ -25,7 +25,7 @@ model_pro = GenerativeModel('gemini-1.5-pro')
 model_flash = GenerativeModel('gemini-1.5-flash')
 
 
-def generate_text(prompt: str, model: GenerativeModel = model_pro, temperature: float = 0.4, top_p: float = 0.4) -> str:
+def generate_text(prompt: str, model: GenerativeModel = model_pro, temperature: float = 0.4, top_p: float = 0.4) -> dict:
     """Gemini でテキストを生成する
 
     Args:
@@ -35,47 +35,48 @@ def generate_text(prompt: str, model: GenerativeModel = model_pro, temperature: 
         top_p: 生成テキストの多様性
 
     Returns:
-        生成されたテキスト
+        生成された JSON オブジェクト
     """
+
+    response_schema = {
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": {
+                "Timestamp": {
+                    "type": "string",
+                },
+                "Description": {
+                    "type": "string",
+                },
+            },
+            "required": ["Timestamp", "Description"],
+        },
+    }
+
     responses = model.generate_content(
         prompt,
-        generation_config={
-            'max_output_tokens': 8192,
-            'temperature': temperature,
-            'top_p': top_p
-        },
+        generation_config=GenerationConfig(
+            max_output_tokens=8192,
+            temperature=temperature,
+            top_p=top_p,
+            response_mime_type="application/json",
+            response_schema=response_schema
+        ),
         safety_settings={
             generative_models.HarmCategory.HARM_CATEGORY_HATE_SPEECH: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
             generative_models.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
             generative_models.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
             generative_models.HarmCategory.HARM_CATEGORY_HARASSMENT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
         },
-        stream=True,
+        # stream=True は不要になりました
     )
 
-    result = ''
-    for response in responses:
-        try:
-            print(response.text, end='')
-            result += response.text
-        except Exception as e:
-            print(e)
-            break
+    # 最初のレスポンスのみを取得
+    result = responses.text
 
-    return result
-
-
-def load_json(text: str) -> dict:
-    """JSON文字列をパースする
-
-    Args:
-        text: JSON 文字列
-
-    Returns:
-        パースされた JSON オブジェクト
-    """
-    text = text.replace('```json', '').replace('```', '').replace('\n', ' ')
-    return json.loads(text)
+    # JSON 文字列をパースして返す
+    return json.loads(result)
 
 
 def search_scene(query: str, top_n: int = 1, model: GenerativeModel = model_flash) -> List[dict]:
@@ -92,10 +93,12 @@ def search_scene(query: str, top_n: int = 1, model: GenerativeModel = model_flas
     response = search_documents_by_query(query, show_summary=False)
     storage_client = storage.Client(credentials=credentials)
     results = []
+
     for doc_id in range(min(top_n, len(response.results))):
         meta_uri = response.results[doc_id].document.derived_struct_data['link']
         title = response.results[doc_id].document.derived_struct_data['title']
         print(f'meta_uri: {meta_uri}')
+
         bucket_name = meta_uri.split("//")[1].split("/", 1)[0]
         blob_name = meta_uri.replace(f'gs://{bucket_name}/', '')
         bucket = storage_client.bucket(bucket_name)
@@ -116,13 +119,22 @@ def search_scene(query: str, top_n: int = 1, model: GenerativeModel = model_flas
                 movie_blob_name = meta_uri.replace('gs://minitap-genai-app-dev-handson/metadata/', 'mp4/s_').replace('.txt', '.mp4')
                 print(f'movie_blob_name: {movie_blob_name}')
                 signed_url = generate_download_signed_url_v4(bucket_name, movie_blob_name)
-                result_str = generate_text(prompt, model=model, temperature=temperature)
-                result = load_json(result_str)
-                results.extend([dict(r, signed_url=signed_url, title=title) for r in result])
+
+                # generate_text から直接結果リストを取得              
+                result = generate_text(prompt, model=model, temperature=temperature)
+
+                # 結果に signed_url と title を追加
+                for r in result:
+                    r['signed_url'] = signed_url
+                    r['title'] = title
+                results.extend(result)
                 break
+
             except Exception as e:
                 print(e)
                 temperature += 0.05
+
         if temperature < 1.0:
             print('\n=====')
+            
     return results
