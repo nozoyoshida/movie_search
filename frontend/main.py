@@ -1,5 +1,11 @@
+import os
 import streamlit as st
 import requests
+from google.auth.transport.requests import Request
+from google.oauth2.id_token import fetch_id_token
+
+# 環境変数から backend の URL を取得
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://backend:8080")  # デフォルト値は適宜変更
 
 def get_start_end_seconds(timestamp):
   """04:57-05:58 のような形式のタイムスタンプを受け取り、
@@ -10,6 +16,15 @@ def get_start_end_seconds(timestamp):
   end_seconds = int(end.split(':')[0]) * 60 + int(end.split(':')[1])
   return start_seconds, end_seconds
 
+def make_request(endpoint: str, params: dict = None):
+    """Backend API に認証情報を付与してリクエストを送信する"""
+    auth_req = Request()
+    id_token = fetch_id_token(auth_req, BACKEND_URL)
+    headers = {'Authorization': f'Bearer {id_token}'}
+    response = requests.get(f"{BACKEND_URL}/{endpoint}", params=params, headers=headers)
+    response.raise_for_status()  # ステータスコードがエラーの場合は例外を発生させる
+    return response.json()
+
 # トグル表示の選択肢
 search_option = st.selectbox("Search Option", ("File Search", "Scene Search"))
 
@@ -19,21 +34,22 @@ if search_option == "File Search":
     if st.button("Search", key="file_search_button"):
         st.write(f"Searching for: {file_search_query}")
         if file_search_query:
-            backend_url = "https://backend-608635780090.asia-northeast1.run.app"
-            response = requests.get(f"{backend_url}/file_search?q={file_search_query}")
-            results = response.json()["results"]
-            if results:
-                st.write("## Result")
-                for c, result in enumerate(results):
-                    if c == 0:
-                        st.write(result['summary'])
-                        continue
-                    st.write(f"Video ID: {result['id']}")
-                    st.write(f"Title: {result['title']}")
-                    st.video(result['signed_url'])
-                    st.divider()
-            else:
-                st.write("No results found.")
+            try:
+                results = make_request("file_search", params={'q': file_search_query})['results']
+                if results:
+                    st.write("## Result")
+                    for c, result in enumerate(results):
+                        if c == 0:
+                            st.write(result['summary'])
+                            continue
+                        st.write(f"Video ID: {result['id']}")
+                        st.write(f"Title: {result['title']}")
+                        st.video(result['signed_url'])
+                        st.divider()
+                else:
+                    st.write("No results found.")
+            except requests.exceptions.RequestException as e:
+                st.error(f"An error occurred while searching: {e}")
 
 elif search_option == "Scene Search":
     st.write("# Scene Search")
@@ -57,23 +73,21 @@ elif search_option == "Scene Search":
     if st.button("Search", key="scene_search_button"):
         st.write(f"Searching for: {scene_search_query}")
         if scene_search_query:
-            backend_url = "https://backend-608635780090.asia-northeast1.run.app/"
-            # クエリパラメータに top_n を追加
-            response = requests.get(f"{backend_url}/scene_search?q={scene_search_query}&top_n={top_n}")
-            results = response.json()["results"]
-            if results:
-                st.write("## Result")
-                for c, result in enumerate(results):
-                    # st.write(f"Title: {result['title']}")
-                    video_id = c + 1
-                    st.write(f"Video ID: {video_id}")
-                    st.write(f"Title: {result['title']}")
-                    st.write(f"Description: {result['Description']}")
-                    st.write(f"Timestamp: {result['Timestamp']}")
-                    start_time, end_time = get_start_end_seconds(result['Timestamp'])
-                    signed_url = result['signed_url']
-                    st.video(signed_url, start_time=start_time, end_time=end_time)
-                    st.divider()
-
-            else:
-                st.write("No results found.")
+            try:
+                results = make_request("scene_search", params={'q': scene_search_query, 'top_n': top_n})['results']
+                if results:
+                    st.write("## Result")
+                    for c, result in enumerate(results):
+                        video_id = c + 1
+                        st.write(f"Video ID: {video_id}")
+                        st.write(f"Title: {result['title']}")
+                        st.write(f"Description: {result['Description']}")
+                        st.write(f"Timestamp: {result['Timestamp']}")
+                        start_time, end_time = get_start_end_seconds(result['Timestamp'])
+                        signed_url = result['signed_url']
+                        st.video(signed_url, start_time=start_time, end_time=end_time)
+                        st.divider()
+                else:
+                    st.write("No results found.")
+            except requests.exceptions.RequestException as e:
+                st.error(f"An error occurred while searching: {e}")
