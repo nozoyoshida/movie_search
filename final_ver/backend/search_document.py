@@ -1,14 +1,17 @@
 from google.cloud import discoveryengine_v1alpha as discoveryengine
 from google.api_core.client_options import ClientOptions
 
-from . import PROJECT_ID, DATASTORE_ID, LOCATION 
+# from . import PROJECT_ID, DATASTORE_ID, LOCATION 
+PROJECT_ID = 'minitap-genai-app-dev-handson'
+DATASTORE_ID = 'movie-search-datastore_1729086247497'
+LOCATION = 'global'
 
 from google import auth
 
-# from google.oauth2 import service_account
-# credentials = service_account.Credentials.from_service_account_file('service_account_key.json')
-credentials, project_id = auth.default()
-credentials.refresh(auth.transport.requests.Request())
+from google.oauth2 import service_account
+credentials = service_account.Credentials.from_service_account_file('service_account_key.json')
+# credentials, project_id = auth.default()
+# credentials.refresh(auth.transport.requests.Request())
 
 
 def search_documents_by_query(query: str, show_summary: bool = True) -> discoveryengine.SearchResponse:
@@ -45,8 +48,12 @@ def search_documents_by_query(query: str, show_summary: bool = True) -> discover
         query=query,
     )
     response = client.search(request)
-    if show_summary:
-        print(response.summary.summary_text)
-    for c, item in enumerate(response.results):
-        print(f'[{c+1}]: {item.document.derived_struct_data["link"]}')
+    # if show_summary:
+    #     print(response.summary.summary_text)
+    # for c, item in enumerate(response.results):
+    #     print(f'[{c+1}]: {item.document.derived_struct_data["link"]}')
     return response
+
+# テスト用
+result = search_documents_by_query('AI')
+print(result)
