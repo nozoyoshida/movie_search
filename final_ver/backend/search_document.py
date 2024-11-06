@@ -8,10 +8,10 @@ from . import PROJECT_ID, DATASTORE_ID, LOCATION
 
 from google import auth
 
-from google.oauth2 import service_account
-credentials = service_account.Credentials.from_service_account_file('service_account_key.json')
-# credentials, project_id = auth.default()
-# credentials.refresh(auth.transport.requests.Request())
+# from google.oauth2 import service_account
+# credentials = service_account.Credentials.from_service_account_file('service_account_key.json')
+credentials, project_id = auth.default()
+credentials.refresh(auth.transport.requests.Request())
 
 
 def search_documents_by_query(query: str, show_summary: bool = True) -> discoveryengine.SearchResponse:
