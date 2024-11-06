@@ -1,3 +1,5 @@
 .venv/*
 final_ver/backend/__pycache__/*
 final_ver/backend/service_account_key.json
+custom_ver/backend/__pycache__/*
+custom_ver/backend/service_account_key.json
