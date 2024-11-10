@@ -19,12 +19,11 @@ if st.button("検索"):
         response = requests.get(f"{BACKEND_URL}/file_search?q={query}")
         if response.status_code == 200:
             results = response.json()
-            st.write(results["results"][0]["summary"])  
-            for r in results["results"][1:]:  
+            st.write(results["results"][0]["summary"])
+            for r in results["results"][1:]:
                 st.write(f"## {r['title']}")
                 st.video(r["signed_url"]) 
         else:
             st.error("エラーが発生しました。")
     else:
         st.warning("検索キーワードを入力してください。")
-

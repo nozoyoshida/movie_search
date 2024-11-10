@@ -1,3 +1,4 @@
+import os
 from google.cloud import discoveryengine_v1alpha as discoveryengine
 from google.api_core.client_options import ClientOptions
 from fastapi import FastAPI, Query
@@ -6,16 +7,14 @@ import traceback
 from utils import generate_download_signed_url_v4
 
 # from . import PROJECT_ID, DATASTORE_ID, LOCATION 
-PROJECT_ID = 'minitap-genai-app-dev-handson'
-DATASTORE_ID = 'movie-search-datastore_1729086247497'
-LOCATION = 'global'
+PROJECT_ID = os.environ.get('PROJECT_ID')
+DATASTORE_ID = os.environ.get('DATASTORE_ID')
+LOCATION = os.environ.get('LOCATION')
 
 from google import auth
 
-from google.oauth2 import service_account
-credentials = service_account.Credentials.from_service_account_file('service_account_key.json')
-# credentials, project_id = auth.default()
-# credentials.refresh(auth.transport.requests.Request())
+credentials, project_id = auth.default()
+credentials.refresh(auth.transport.requests.Request())
 
 import json
 from typing import List
