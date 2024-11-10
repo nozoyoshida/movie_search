@@ -95,12 +95,16 @@ def search_scene(query: str, top_n: int = 1, model: GenerativeModel = model_flas
     results = []
 
     for doc_id in range(min(top_n, len(response.results))):
+        # Discovery Engine の検索結果から、動画メタデータの URI とタイトルを取得
         meta_uri = response.results[doc_id].document.derived_struct_data['link']
         title = response.results[doc_id].document.derived_struct_data['title']
         print(f'meta_uri: {meta_uri}')
 
+        # URI からバケット名と blob 名を取得
         bucket_name = meta_uri.split("//")[1].split("/", 1)[0]
         blob_name = meta_uri.replace(f'gs://{bucket_name}/', '')
+        
+        # Cloud Storage からメタデータを取得
         bucket = storage_client.bucket(bucket_name)
         blob = bucket.blob(blob_name)
 
